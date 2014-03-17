@@ -15,7 +15,7 @@ class BirdConfig(object):
     self._filepath = config.get('General', 'bird{}_dynamic_config'.format(self.version))
     self._reload_cmd = config.get('General', 'bird{}_reload'.format(self.version)).split(' ')
     self._prepare_path()
-    if revert_old:
+    if revert_old or not os.path.exists(self._filepath):
       self.save()
     else:
       self._load()
