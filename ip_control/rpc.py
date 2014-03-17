@@ -41,7 +41,7 @@ class RPC(object):
     from ip_control.configuration import config
     logging.info("Configuring")
 
-    self._controllers = set([])
+    self._controllers = []
     if config.has_option('General', 'ip_control_dns_name'):
       self_ip = netaddr.IPNetwork(config.get('General', 'bind_ip'))
       for answer in dns.resolver.query(config.get('General', 'ip_control_dns_name'), 'A'):
@@ -49,11 +49,12 @@ class RPC(object):
         if ip == self_ip:
           # Ignore itself
           continue
+        ip = ip.ip
         try:
-          self._controllers.add(jsonrpclib.Server("http://{}:{}/".format(ip, config.get('General', 'bind_port'))))
+          self._controllers.append(jsonrpclib.Server("http://{}:{}/".format(ip, config.get('General', 'bind_port'))))
         except:
           logging.warning("Could not connect to controller %s.", ip)
-          self._controllers.add("http://{}:{}/".format(ip, config.get('General', 'bind_port')))
+          self._controllers.append("http://{}:{}/".format(ip, config.get('General', 'bind_port')))
 
     self._networks = {}
     for section in (i for i in config.sections() if i != 'General'):
@@ -116,12 +117,12 @@ class RPC(object):
 
     if network_config.get('unique', True):
       # Disable this IP over all controllers
-      for controller in set(self._controllers):
+      for controller in list(self._controllers):
         if isinstance(controller, str):
           try:
             s_controller = jsonrpclib.Server(controller)
             self._controllers.remove(controller)
-            self._controllers.add(s_controller)
+            self._controllers.append(s_controller)
             controller = s_controller
           except:
             logging.warning("Could not connect to controller %s.", controller)
