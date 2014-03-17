@@ -12,6 +12,8 @@ def init(config_file):
       'bird4_reload': 'sudo service bird reload',
       'bird6_dynamic_config': '/var/cache/bird/dynamic_ipv6.conf',
       'bird6_reload': 'sudo service bird6 reload',
+      'add_route': 'sudo ip ro add {network} dev lxc0',
+      'remove_route': 'sudo ip ro add {network} dev lxc0'
     }
   })
   config.readfp(open(config_file, 'r'))
