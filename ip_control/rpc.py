@@ -1,17 +1,46 @@
 import logging
-import logging.handlers
+import logging.config
 import dns.resolver
 import dns.reversename
 import netaddr
 import jsonrpclib
-from ip_control.configuration import config
 from ip_control.bird import BirdConfig
 
-logger = logging.getLogger('ip-control.rpc')
-logger.addHandler(logging.handlers.SysLogHandler(address = '/dev/log'))
+
+logging.config.dictConfig({
+  'version': 1,
+  'formatters': {
+    'default': {
+      'format': "ip-control - %(levelname)s: %(message)s"
+    }
+  },
+  'handlers': {
+    'syslog': {
+      'class': 'logging.handlers.SysLogHandler',
+      'formatter': 'default',
+      'address': '/dev/log'
+    }
+  },
+  'root': {
+    'handlers': ['syslog'],
+    'level': 'INFO'
+  }
+})
 
 class RPC(object):
-  def __init__(self):
+  def __init__(self, revert_old):
+    # Initialize Birds
+    self._bird = {
+      4: BirdConfig(4, revert_old),
+      6: BirdConfig(6, revert_old)
+    }
+
+    self.configure()
+
+  def configure(self):
+    from ip_control.configuration import config
+    logging.info("Configuring")
+
     self._controllers = set([])
     if config.has_option('General', 'ip_control_dns_name'):
       self_ip = netaddr.IPNetwork(config.get('General', 'bind_ip'))
@@ -21,46 +50,46 @@ class RPC(object):
           # Ignore itself
           continue
         self._controllers.add(jsonrpclib.Server("http://{}:{}/".format(ip, config.get('General', 'bind_port'))))
-    # Initialize Birds
-    self._bird = {
-      4: BirdConfig(4),
-      6: BirdConfig(6)
-    }
 
     self._networks = {}
-    for section in (i for i in config.sections if i != 'General'):
+    for section in (i for i in config.sections() if i != 'General'):
       network = netaddr.IPNetwork(section)
+      logging.info('Checking network %s.', network)
       # Get allowed hosts, also check them if are properly configured
       allowed_hosts = [i.strip() for i in config.get(section, 'allowed_hosts').split(',')]
       allowed_hosts = set([i if i.endswith('.') else i + '.' for i in allowed_hosts])
-      for host in allowed_hosts:
+      for host in [i for i in allowed_hosts]:
         try:
           address = dns.resolver.query(host)
           if len(address) > 1:
-            logger.error("Host {} resolves to multiple IP addresses, removing from allowed hosts.".format(host))
+            logging.error("Host %s resolves to multiple IP addresses, removing from allowed hosts.", host)
             allowed_hosts.remove(host)
             continue
           address = address[0]
+          logging.info("Host %s resolved to %s", host, address)
         except dns.resolver.NoAnswer:
-          logger.error("Host {} has no DNS record, removing it from allowed hosts.". format(host))
+          logging.error("Host %s has no DNS record, removing it from allowed hosts.", host)
           allowed_hosts.remove(host)
           continue
         # Check reverse lookup
         try:
-          reverse_lookup = dns.resolver.query(dns.reversename.from_address(address), 'PTR')
+          reverse_lookup = dns.resolver.query(dns.reversename.from_address(address.to_text()), 'PTR')
           if len(reverse_lookup) > 1:
-            logger.error("Host's {} IP {} has many reverse records, removing it from allowed hosts.".format(host, address))
+            logging.error("Host's %s IP %s has many reverse records, removing it from allowed hosts.", host, address)
             allowed_hosts.remove(host)
             continue
-          reverse_lookup = reverse_lookup[0]
+          reverse_lookup = reverse_lookup[0].to_text()
+          logging.info("Resolved IP %s has an inverse record to %s", address, reverse_lookup)
         except dns.resolver.NoAnswer:
-          logger.error("Host's {} IP {} has no reverse DNS record, removing it from allowed hosts.".format(host, address))
+          logging.error("Host's %s IP %s has no reverse DNS record, removing it from allowed hosts.", host, address)
           allowed_hosts.remove(host)
           continue
         # Does host and reversed looked up host match?
         if host != reverse_lookup:
-          logger.error("Host {} and it's reverse {} from IP {} does not match, removing it from allowed hosts.".format(host, reverse_lookup, address))
+          logging.error("Host %s and it's reverse %s from IP %s does not match, removing it from allowed hosts.", host, reverse_lookup, address)
           allowed_hosts.remove(host)
+        else:
+          logging.info("Host's %s DNS records are properly configured.", host)
 
       # Add network
       self._networks[network] = {
@@ -68,7 +97,16 @@ class RPC(object):
         'unique': not network.hostmask.value or (not config.getboolean(section, 'unicast') if config.has_option(section, 'unicast') else True)
       }
 
-  def enable(network):
+    # Remove non managed networks (they should not be announced anymore!)
+    changed = set([])
+    for bird, obsolete_network in ((b, i) for b in self._bird.values() for i in b.networks() if i not in self._networks):
+      logging.info('Removing obsolete network %s.', obsolete_network)
+      bird.remove_network(obsolete_network)
+      changed.add(bird)
+    for bird in changed:
+      bird.save()
+
+  def enable(self, network):
     network = netaddr.IPNetwork(network)
     network_config = self._check_access(network)
 
@@ -79,21 +117,21 @@ class RPC(object):
           controller.disable(str(network))
         except:
           # Ignore exception, just log it
-          logger.exception("There was an exception when trying to disable the network {} on controller {}:".format(network, controller))
+          logging.exception("There was an exception when trying to disable the network %s on controller %s:", network, controller)
 
     if not self._bird[network.version].has_network(network):
-      self._bird[network.version].remove(network)
+      self._bird[network.version].add_network(network)
       self._bird[network.version].save()
 
-  def disable(network):
+  def disable(self, network):
     network = netaddr.IPNetwork(network)
     self._check_access(network)
 
     if self._bird[network.version].has_network(network):
-      self._bird[network.version].remove(network)
+      self._bird[network.version].remove_network(network)
       self._bird[network.version].save()
 
-  def _check_access(network):
+  def _check_access(self, network):
     network_config = self._networks.get(network, None)
     if not network_config:
       raise Exception("Network {} not known at this controller.".format(network))
@@ -101,16 +139,18 @@ class RPC(object):
     # Resolve IP into host name
     try:
       client = dns.resolver.query(dns.reversename.from_address(self.client_address), 'PTR')
+      client = client[0].to_text()
     except dns.resolver.NoAnswer:
-      logger.error("IP {} has no reverse records.".format(self.client_address))
+      logging.error("IP %s has no reverse records.", self.client_address)
       raise Exception("Access denied")
     # Check if we have host on the list of allowed hosts
     if client not in network_config.get('allowed_hosts', set([])):
-      logger.warning("Client from {} tried to change network {} OSPF advertisment.".format(client, network))
+      logging.warning("Client from %s tried to change network %s OSPF advertisment.", client, network)
       raise Exception("Access denied")
 
     return network_config
 
-  def status(network):
-    network = netaddr.IPNetwork(ip)
+  def status(self, network):
+    network = netaddr.IPNetwork(network)
+    self._check_access(network)
     return 'enabled' if self._bird[network.version].has_network(network) else 'disabled'
