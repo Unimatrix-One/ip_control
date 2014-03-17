@@ -14,15 +14,17 @@ class BirdConfig(object):
     self.version = 6 if str(version) == '6' else 4
     self._filepath = config.get('General', 'bird{}_dynamic_config'.format(self.version))
     self._prepare_path()
-    if revert_old or not os.path.exists(self._filepath):
-      self.save()
-    else:
-      self._load()
 
     # Prepare commands
     self._reload = config.get('General', 'bird{}_reload'.format(self.version))
     self._add_route = config.get('General', 'add_route')
     self._remove_route = config.get('General', 'remove_route')
+
+    # Load configs
+    if revert_old or not os.path.exists(self._filepath):
+      self.save()
+    else:
+      self._load()
 
   def _cmd(self, cmd, **kwargs):
     return getattr(self, '_' + cmd).format(**kwargs).split(' ')
@@ -49,7 +51,7 @@ class BirdConfig(object):
   def add_network(self, network):
     try:
       # Add network route
-      subprocess.check_call(self._cmd('add_route_cmd', network = network))
+      subprocess.check_call(self._cmd('add_route', network = network))
     except:
       logging.exception("Cannot add network %s!", network)
 
@@ -58,7 +60,7 @@ class BirdConfig(object):
   def remove_network(self, network):
     try:
       # Add network route
-      subprocess.check_call(self._cmd('remove_route_cmd', network = network))
+      subprocess.check_call(self._cmd('remove_route', network = network))
     except:
       logging.exception("Cannot remove network %s!", network)
 
