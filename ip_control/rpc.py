@@ -128,7 +128,8 @@ class RPC(object):
             logging.warning("Could not connect to controller %s.", controller)
             continue
         try:
-          controller.disable(str(network))
+          if controller.status(str(network)) == 'enabled':
+            controller.disable(str(network))
         except:
           # Ignore exception, just log it
           logging.exception("There was an exception when trying to disable the network %s on controller %s:", network, controller)
@@ -166,5 +167,4 @@ class RPC(object):
 
   def status(self, network):
     network = netaddr.IPNetwork(network)
-    self._check_access(network)
     return 'enabled' if self._bird[network.version].has_network(network) else 'disabled'
