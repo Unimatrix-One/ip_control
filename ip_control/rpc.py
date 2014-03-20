@@ -7,14 +7,14 @@ import jsonrpclib
 from ip_control.bird import BirdConfig
 
 class RPC(object):
-  def __init__(self, revert_old, bind_ip, bind_port):
+  def __init__(self, revert_old, (bind_ip, bind_port)):
     # Initialize Birds
     self._bird = {
       4: BirdConfig(4, revert_old),
       6: BirdConfig(6, revert_old)
     }
-    self._bind_ip = bind_ip
-    self._bind_port = bind_port
+    self.bind_ip = bind_ip
+    self.bind_port = bind_port
 
     self.configure()
 
@@ -23,7 +23,7 @@ class RPC(object):
     controllers = []
     control_domain = config.has_option('General', 'ip_control_dns_name')
     if control_domain:
-      self_ip = netaddr.IPNetwork(self._bind_ip)
+      self_ip = netaddr.IPNetwork(self.bind_ip)
       for answer in dns.resolver.query(control_domain, 'A'):
         ip = netaddr.IPNetwork(str(answer))
         if ip == self_ip:
@@ -31,7 +31,7 @@ class RPC(object):
           continue
         ip = ip.ip
         try:
-          controllers.append(jsonrpclib.Server("http://{}:{}/".format(ip, self._bind_port)))
+          controllers.append(jsonrpclib.Server("http://{}:{}/".format(ip, self.bind_port)))
         except:
           logging.warning("Could not connect to controller %s.", ip)
     return controllers
@@ -43,7 +43,7 @@ class RPC(object):
     self._networks = {}
     for section in (i for i in config.sections() if i != 'General'):
       network = netaddr.IPNetwork(section)
-      logging.info('Checking network %s.', network)
+      logging.info('Loading network %s.', network)
       # Get allowed hosts, also check them if are properly configured
       allowed_hosts = [i.strip() for i in config.get(section, 'allowed_hosts').split(',')]
       allowed_hosts = set([i if i.endswith('.') else i + '.' for i in allowed_hosts])
