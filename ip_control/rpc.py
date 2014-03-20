@@ -24,11 +24,11 @@ class RPC(object):
     from configuration import config
 
     controllers = []
-    control_domain = config.has_option('General', 'ip_control_dns_name')
-    if control_domain:
+    if config.has_option('General', 'ip_control_dns_name'):
+      control_domain = config.get('General', 'ip_control_dns_name')
       self_ip = netaddr.IPNetwork(self.bind_ip)
       for answer in dns.resolver.query(control_domain, 'A'):
-        ip = netaddr.IPNetwork(str(answer))
+        ip = netaddr.IPNetwork(answer.to_text())
         if ip == self_ip:
           # Ignore itself
           continue
