@@ -86,7 +86,7 @@ try:
   hostname = subprocess.check_output(['hostname', '-f']).strip()
   # Resolve it
   logging.info("Resolving %s", hostname)
-  bind_ip = dns.resolver.query(hostname)[0]
+  bind_ip = dns.resolver.query(hostname)[0].to_text()
 except subprocess.CalledProcessError:
   logging.error("Unable to retrieve router's hostname")
   exit(1)
