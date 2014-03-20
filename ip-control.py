@@ -76,7 +76,7 @@ class RequestHandler(SimpleJSONRPCRequestHandler):
 
     SimpleJSONRPCRequestHandler.__init__(self, request, client_address, server)
 
-def get_bind_info()
+def get_bind_info():
   # Get bind information
   try:
     # Get FQDN
