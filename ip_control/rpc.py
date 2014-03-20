@@ -21,6 +21,8 @@ class RPC(object):
 
   @property
   def _controllers(self):
+    from configuration import config
+
     controllers = []
     control_domain = config.has_option('General', 'ip_control_dns_name')
     if control_domain:
