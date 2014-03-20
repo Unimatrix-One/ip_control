@@ -45,7 +45,7 @@ class RPC(object):
       network = netaddr.IPNetwork(section)
       logging.info('Loading network %s.', network)
       # Check for interface
-      if not config.hasoption(section, 'interface'):
+      if not config.has_option(section, 'interface'):
         logging.warning("Network %s has no interface specified, ignoring it.", network)
         continue
       interface = config.get(section, 'interface')
