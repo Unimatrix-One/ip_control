@@ -100,7 +100,7 @@ class RPC(object):
 
     # Remove non managed networks (they should not be announced anymore!)
     changed = set([])
-    for bird, obsolete_network in ((b, i) for b in self._bird.values() for i in b.networks() if i not in self._networks):
+    for bird, obsolete_network in ((b, i) for b in self._bird.values() for i in b.networks if i not in self._networks):
       logging.info('Removing obsolete network %s.', obsolete_network)
       bird.remove_network(obsolete_network)
       changed.add(bird)
