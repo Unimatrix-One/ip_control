@@ -6,27 +6,6 @@ import netaddr
 import jsonrpclib
 from ip_control.bird import BirdConfig
 
-
-logging.config.dictConfig({
-  'version': 1,
-  'formatters': {
-    'default': {
-      'format': "ip-control - %(levelname)s: %(message)s"
-    }
-  },
-  'handlers': {
-    'syslog': {
-      'class': 'logging.handlers.SysLogHandler',
-      'formatter': 'default',
-      'address': '/dev/log'
-    }
-  },
-  'root': {
-    'handlers': ['syslog'],
-    'level': 'INFO'
-  }
-})
-
 class RPC(object):
   def __init__(self, revert_old):
     # Initialize Birds
