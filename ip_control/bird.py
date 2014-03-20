@@ -10,7 +10,7 @@ class BirdConfig(object):
 
   def __init__(self, version, revert_old):
     from ip_control.configuration import config
-    self._networks = set([])
+    self._networks = {}
     self.version = 6 if str(version) == '6' else 4
     self._filepath = config.get('General', 'bird{}_dynamic_config'.format(self.version))
     self._prepare_path()
@@ -48,32 +48,36 @@ class BirdConfig(object):
         logging.info('Loaded network %s', match.group(1))
         self.add_network(match.group(1))
 
-  def add_network(self, network):
+  def add_network(self, network, interface):
+    network = netaddr.IPNetwork(network)
     try:
       # Add network route
-      subprocess.check_call(self._cmd('add_route', network = network))
+      subprocess.check_call(self._cmd('add_route', network = network, interface = interface))
     except:
       logging.exception("Cannot add network %s!", network)
 
-    self._networks.add(netaddr.IPNetwork(network))
+    self._networks[network] = interface
 
   def remove_network(self, network):
+    network = netaddr.IPNetwork(network)
+    if network not in self._networks:
+      return
+    interface = self._networks[network]
+
     try:
       # Add network route
-      subprocess.check_call(self._cmd('remove_route', network = network))
+      subprocess.check_call(self._cmd('remove_route', network = network, interface = interface))
     except:
       logging.exception("Cannot remove network %s!", network)
-
-    network = netaddr.IPNetwork(network)
-    if network in self._networks:
-      self._networks.remove(network)
+    del self._networks[network]
 
   def has_network(self, network):
     network = netaddr.IPNetwork(network)
     return network in self._networks
 
+  @property
   def networks(self):
-    return set(self._networks)
+    return set(self._networks.keys())
 
   def save(self):
     # Create/rewrite config file

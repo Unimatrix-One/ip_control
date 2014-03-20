@@ -7,13 +7,6 @@ def init(config_file):
   global config
   config = RawConfigParser({
     'General': {
-      'bind_port': '8080',
-      'bird4_dynamic_config': '/var/cache/bird/dynamic_ipv4.conf',
-      'bird4_reload': 'sudo service bird reload',
-      'bird6_dynamic_config': '/var/cache/bird/dynamic_ipv6.conf',
-      'bird6_reload': 'sudo service bird6 reload',
-      'add_route': 'sudo ip ro add {network} dev lxc0',
-      'remove_route': 'sudo ip ro add {network} dev lxc0'
     }
   })
   config.readfp(open(config_file, 'r'))
@@ -31,6 +24,10 @@ bird4_reload = sudo service bird reload
 bird6_dynamic_config = /var/cache/bird/dynamic_ipv6.conf
 # Bird6 reload command (make sure to config sudoers)
 bird6_reload = sudo service bird6 reload
+# Command to be executed when adding route
+'add_route': 'sudo ip ro add {network} dev {interface}',
+# Command to be executed when removing route
+'remove_route': 'sudo ip ro add {network} dev {interface}'
 
 # A section dedicated to a specific IP network
 [10.2.xxx.xxx/32]
@@ -39,4 +36,6 @@ allowed_hosts=ctxxxx.dronexx.tus.uninet,
               ctxxxx.dronexx.tus.uninet
 # Is IP unicasted? (usable only for /32 or /128)
 unicast = false
+# Interface to add route to
+interface = lxc0
 """

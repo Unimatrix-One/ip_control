@@ -44,6 +44,17 @@ class RPC(object):
     for section in (i for i in config.sections() if i != 'General'):
       network = netaddr.IPNetwork(section)
       logging.info('Loading network %s.', network)
+      # Check for interface
+      if not config.hasoption(section, 'interface'):
+        logging.warning("Network %s has no interface specified, ignoring it.", network)
+        continue
+      interface = config.get(section, 'interface')
+      # Check if interface exists
+      try:
+        subprocess.check_call(['/sbin/ifconfig', interface])
+      except subprocess.CalledProcessError:
+        logging.warning("Interface %s does not exists, ignoring network %s.", interface, network)
+        continue
       # Get allowed hosts, also check them if are properly configured
       allowed_hosts = [i.strip() for i in config.get(section, 'allowed_hosts').split(',')]
       allowed_hosts = set([i if i.endswith('.') else i + '.' for i in allowed_hosts])
@@ -51,31 +62,31 @@ class RPC(object):
         try:
           address = dns.resolver.query(host)
           if len(address) > 1:
-            logging.error("Host %s resolves to multiple IP addresses, removing from allowed hosts.", host)
+            logging.warning("Host %s resolves to multiple IP addresses, removing from allowed hosts.", host)
             allowed_hosts.remove(host)
             continue
           address = address[0]
           logging.info("Host %s resolved to %s", host, address)
         except dns.resolver.NoAnswer:
-          logging.error("Host %s has no DNS record, removing it from allowed hosts.", host)
+          logging.warning("Host %s has no DNS record, removing it from allowed hosts.", host)
           allowed_hosts.remove(host)
           continue
         # Check reverse lookup
         try:
           reverse_lookup = dns.resolver.query(dns.reversename.from_address(address.to_text()), 'PTR')
           if len(reverse_lookup) > 1:
-            logging.error("Host's %s IP %s has many reverse records, removing it from allowed hosts.", host, address)
+            logging.warning("Host's %s IP %s has many reverse records, removing it from allowed hosts.", host, address)
             allowed_hosts.remove(host)
             continue
           reverse_lookup = reverse_lookup[0].to_text()
           logging.info("Resolved IP %s has an inverse record to %s", address, reverse_lookup)
         except dns.resolver.NoAnswer:
-          logging.error("Host's %s IP %s has no reverse DNS record, removing it from allowed hosts.", host, address)
+          logging.warning("Host's %s IP %s has no reverse DNS record, removing it from allowed hosts.", host, address)
           allowed_hosts.remove(host)
           continue
         # Does host and reversed looked up host match?
         if host != reverse_lookup:
-          logging.error("Host %s and it's reverse %s from IP %s does not match, removing it from allowed hosts.", host, reverse_lookup, address)
+          logging.warning("Host %s and it's reverse %s from IP %s does not match, removing it from allowed hosts.", host, reverse_lookup, address)
           allowed_hosts.remove(host)
         else:
           logging.info("Host's %s DNS records are properly configured.", host)
@@ -83,6 +94,7 @@ class RPC(object):
       # Add network
       self._networks[network] = {
         'allowed_hosts': allowed_hosts,
+        'interface': interface,
         'unique': not network.hostmask.value or (not config.getboolean(section, 'unicast') if config.has_option(section, 'unicast') else True)
       }
 
@@ -110,7 +122,7 @@ class RPC(object):
           logging.exception("There was an exception when trying to disable the network %s on controller %s:", network, controller)
 
     if not self._bird[network.version].has_network(network):
-      self._bird[network.version].add_network(network)
+      self._bird[network.version].add_network(network, network_config['interface'])
       self._bird[network.version].save()
 
   def disable(self, network):
