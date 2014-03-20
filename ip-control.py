@@ -98,7 +98,7 @@ try:
   control_domain = config.get('General', 'ip_control_dns_name')
   # Get bind port
   logging.info("Resolving %s TXT record", control_domain)
-  bind_port = dns.resolver.query(control_domain, 'TXT')[0]
+  bind_port = dns.resolver.query(control_domain, 'TXT')[0].to_text()
   logging.info("Resolved to %s", bind_port)
 except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN):
   logging.error("Unable to resolve %s TXT record to fetch bind port", control_domain)
