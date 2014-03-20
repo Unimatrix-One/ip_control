@@ -16,6 +16,8 @@ parser.add_argument('--config', '-c', dest = 'config', type = str, default = '/e
                     help = 'Specify alternate config file.')
 parser.add_argument('--revert', '-r', dest = 'revert_old', action = 'store_true',
                     help = 'Specify alternate config file.')
+parser.add_argument('--log-to', '-l', dest = 'logging', nargs = '+', type = str, default = ['console'],
+                    help = 'Specify logging output. Possible values are console and syslog')
 
 args = parser.parse_args()
 
@@ -47,7 +49,7 @@ logging.config.dictConfig({
     }
   },
   'root': {
-    'handlers': ['syslog', 'console'],
+    'handlers': set(args.logging),
     'level': 'INFO'
   }
 })
