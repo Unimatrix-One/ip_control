@@ -7,33 +7,38 @@ import jsonrpclib
 from ip_control.bird import BirdConfig
 
 class RPC(object):
-  def __init__(self, revert_old):
+  def __init__(self, revert_old, bind_ip, bind_port):
     # Initialize Birds
     self._bird = {
       4: BirdConfig(4, revert_old),
       6: BirdConfig(6, revert_old)
     }
+    self._bind_ip = bind_ip
+    self._bind_port = bind_port
 
     self.configure()
 
-  def configure(self):
-    from ip_control.configuration import config
-    logging.info("Configuring")
-
-    self._controllers = []
-    if config.has_option('General', 'ip_control_dns_name'):
-      self_ip = netaddr.IPNetwork(config.get('General', 'bind_ip'))
-      for answer in dns.resolver.query(config.get('General', 'ip_control_dns_name'), 'A'):
+  @property
+  def _controllers(self):
+    controllers = []
+    control_domain = config.has_option('General', 'ip_control_dns_name')
+    if control_domain:
+      self_ip = netaddr.IPNetwork(self._bind_ip)
+      for answer in dns.resolver.query(control_domain, 'A'):
         ip = netaddr.IPNetwork(str(answer))
         if ip == self_ip:
           # Ignore itself
           continue
         ip = ip.ip
         try:
-          self._controllers.append(jsonrpclib.Server("http://{}:{}/".format(ip, config.get('General', 'bind_port'))))
+          controllers.append(jsonrpclib.Server("http://{}:{}/".format(ip, self._bind_port)))
         except:
           logging.warning("Could not connect to controller %s.", ip)
-          self._controllers.append("http://{}:{}/".format(ip, config.get('General', 'bind_port')))
+    return controllers
+
+  def configure(self):
+    from ip_control.configuration import config
+    logging.info("Configuring")
 
     self._networks = {}
     for section in (i for i in config.sections() if i != 'General'):
@@ -96,16 +101,7 @@ class RPC(object):
 
     if network_config.get('unique', True):
       # Disable this IP over all controllers
-      for controller in list(self._controllers):
-        if isinstance(controller, str):
-          try:
-            s_controller = jsonrpclib.Server(controller)
-            self._controllers.remove(controller)
-            self._controllers.append(s_controller)
-            controller = s_controller
-          except:
-            logging.warning("Could not connect to controller %s.", controller)
-            continue
+      for controller in self._controllers:
         try:
           if controller.status(str(network)) == 'enabled':
             controller.disable(str(network))

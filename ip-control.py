@@ -110,7 +110,7 @@ else:
   logging.info("Binding to port %d", bind_port)
 
 # Setup our server
-rpc_instance = RPC(args.revert_old)
+rpc_instance = RPC(args.revert_old, bind_ip, bind_port)
 server = SimpleJSONRPCServer((bind_ip, bind_port),
                              requestHandler = RequestHandler)
 
