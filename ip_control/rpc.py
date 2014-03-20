@@ -4,6 +4,7 @@ import dns.resolver
 import dns.reversename
 import netaddr
 import jsonrpclib
+import subprocess
 from ip_control.bird import BirdConfig
 
 class RPC(object):
