@@ -8,7 +8,21 @@ import subprocess
 from ip_control.bird import BirdConfig
 
 class RPC(object):
-  def __init__(self, revert_old, (bind_ip, bind_port)):
+  def __init__(self, (bind_ip, bind_port)):
+    from configuration import config
+    import os.path
+    # Check for persistance
+    persistance_file = config.get('General', 'persistance_file')
+    if os.path.exists(persistance_file):
+      revert_old = False
+    else:
+      revert_old = True
+      # Touch this file
+      try:
+        open(persistance_file, 'w')
+      except IOError:
+        logging.error("Cannot create persistance file.")
+
     # Initialize Birds
     self._bird = {
       4: BirdConfig(4, revert_old),

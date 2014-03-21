@@ -25,9 +25,14 @@ bird6_dynamic_config = /var/cache/bird/dynamic_ipv6.conf
 # Bird6 reload command (make sure to config sudoers)
 bird6_reload = sudo service bird6 reload
 # Command to be executed when adding route
-'add_route': 'sudo ip ro add {network} dev {interface}',
+add_route = sudo ip ro add {network} dev {interface}
 # Command to be executed when removing route
-'remove_route': 'sudo ip ro add {network} dev {interface}'
+remove_route = sudo ip ro add {network} dev {interface}
+# A file for checking persistance, if file doesn't exist
+# it will revert all previously enabled routes and
+# create this file for ensuring persistance after restart.
+# Make sure this file gets removed upon machine restart
+persistance_file = /tmp/persistant-routes
 
 # A section dedicated to a specific IP network
 [10.2.xxx.xxx/32]

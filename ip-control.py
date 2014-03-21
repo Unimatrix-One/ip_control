@@ -14,8 +14,6 @@ parser.add_argument('--example-cfg', dest = 'print_config', action = 'store_true
                     help = 'Prints out an example configuration.')
 parser.add_argument('--config', '-c', dest = 'config', type = str, default = '/etc/ip-control.conf',
                     help = 'Specify alternate config file.')
-parser.add_argument('--revert', '-r', dest = 'revert_old', action = 'store_true',
-                    help = 'Specify alternate config file.')
 parser.add_argument('--log-to', '-l', dest = 'logging', nargs = '+', type = str, default = ['console'],
                     help = 'Specify logging output. Possible values are console and syslog')
 
@@ -113,7 +111,7 @@ def get_bind_info():
   return (bind_ip, bind_port)
 
 # Setup our server
-rpc_instance = RPC(args.revert_old, get_bind_info())
+rpc_instance = RPC(get_bind_info())
 server = SimpleJSONRPCServer((rpc_instance.bind_ip, rpc_instance.bind_port),
                              requestHandler = RequestHandler)
 
