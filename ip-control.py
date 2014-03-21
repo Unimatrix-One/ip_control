@@ -111,7 +111,14 @@ def get_bind_info():
   return (bind_ip, bind_port)
 
 # Setup our server
-rpc_instance = RPC(get_bind_info())
+bind_info = None
+while not bind_info:
+  try:
+    bind_info = get_bind_info()
+  except dns.resolver.Timeout:
+    logging.warning("Timeout occured when retrieving settings from DNS.")
+    continue
+rpc_instance = RPC(bind_info)
 server = SimpleJSONRPCServer((rpc_instance.bind_ip, rpc_instance.bind_port),
                              requestHandler = RequestHandler)
 
