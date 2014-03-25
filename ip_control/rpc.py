@@ -34,7 +34,7 @@ class RPC(object):
     self.configure()
 
   @property
-  def _controllers(self):
+  def _controllers(self, only_ip = False):
     from configuration import config
 
     controllers = []
@@ -47,10 +47,13 @@ class RPC(object):
           # Ignore itself
           continue
         ip = ip.ip
-        try:
-          controllers.append(jsonrpclib.Server("http://{}:{}/".format(ip, self.bind_port)))
-        except:
-          logging.warning("Could not connect to controller %s.", ip)
+        if not only_ip:
+          try:
+            controllers.append(jsonrpclib.Server("http://{}:{}/".format(ip, self.bind_port)))
+          except:
+            logging.warning("Could not connect to controller %s.", ip)
+        else:
+          controllers.append(ip)
     return controllers
 
   def configure(self):
@@ -154,6 +157,10 @@ class RPC(object):
     network_config = self._networks.get(network, None)
     if not network_config:
       raise Exception("Network {} not known at this controller.".format(network))
+
+    # Check if controller is connecting to us
+    if netaddr.IPAddress(self.client_address) in self._controllers(only_ip = True):
+      return network_config
 
     # Resolve IP into host name
     try:
