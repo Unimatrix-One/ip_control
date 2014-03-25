@@ -66,8 +66,6 @@ def reconfigure(_a, _b):
   config = configuration.init(args.config)
   rpc_instance.configure()
 signal.signal(signal.SIGHUP, reconfigure)
-# Restart system calls
-signal.siginterrupt(signal.SIGHUP, False)
 
 class RequestHandler(SimpleJSONRPCRequestHandler):
   def __init__(self, request, client_address, server):
@@ -126,4 +124,10 @@ server.register_instance(rpc_instance)
 
 # Start it up
 logging.info("Listening for requests.")
-server.serve_forever()
+import select
+while True:
+  try:
+    server.serve_forever()
+  except select.error:
+    # Just go along
+    pass
