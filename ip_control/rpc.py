@@ -9,25 +9,6 @@ from ip_control.bird import BirdConfig
 
 class RPC(object):
   def __init__(self, (bind_ip, bind_port)):
-    from configuration import config
-    import os.path
-    # Check for persistance
-    persistance_file = config.get('General', 'persistance_file')
-    if os.path.exists(persistance_file):
-      revert_old = False
-    else:
-      revert_old = True
-      # Touch this file
-      try:
-        open(persistance_file, 'w')
-      except IOError:
-        logging.error("Cannot create persistance file.")
-
-    # Initialize Birds
-    self._bird = {
-      4: BirdConfig(4, revert_old),
-      6: BirdConfig(6, revert_old)
-    }
     self.bind_ip = bind_ip
     self.bind_port = bind_port
 
@@ -56,9 +37,30 @@ class RPC(object):
     return controllers
 
   def configure(self):
+    import os.path
     from ip_control.configuration import config
     logging.info("Configuring")
 
+    # First, configure birds
+    # Check for persistance
+    persistance_file = config.get('General', 'persistance_file')
+    if os.path.exists(persistance_file):
+      revert_old = False
+    else:
+      revert_old = True
+      # Touch this file
+      try:
+        open(persistance_file, 'w')
+      except IOError:
+        logging.error("Cannot create persistance file.")
+
+    # Initialize Birds
+    self._bird = {
+      4: BirdConfig(4, revert_old),
+      6: BirdConfig(6, revert_old)
+    }
+
+    # Load networks
     self._networks = {}
     for section in (i for i in config.sections() if i != 'General'):
       network = netaddr.IPNetwork(section)
