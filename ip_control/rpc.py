@@ -159,7 +159,7 @@ class RPC(object):
       raise Exception("Network {} not known at this controller.".format(network))
 
     # Check if controller is connecting to us
-    if netaddr.IPAddress(self.client_address) in self._controllers(only_ip = True):
+    if netaddr.IPNetwork(self.client_address).ip in self._controllers(only_ip = True):
       return network_config
 
     # Resolve IP into host name
