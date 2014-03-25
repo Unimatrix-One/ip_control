@@ -86,7 +86,7 @@ class RPC(object):
             continue
           address = address[0]
           logging.info("Host %s resolved to %s", host, address)
-        except dns.resolver.NoAnswer:
+        except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN):
           logging.warning("Host %s has no DNS record, removing it from allowed hosts.", host)
           allowed_hosts.remove(host)
           continue
@@ -99,7 +99,7 @@ class RPC(object):
             continue
           reverse_lookup = reverse_lookup[0].to_text()
           logging.info("Resolved IP %s has an inverse record to %s", address, reverse_lookup)
-        except dns.resolver.NoAnswer:
+        except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN):
           logging.warning("Host's %s IP %s has no reverse DNS record, removing it from allowed hosts.", host, address)
           allowed_hosts.remove(host)
           continue
@@ -165,7 +165,7 @@ class RPC(object):
     try:
       client = dns.resolver.query(dns.reversename.from_address(self.client_address), 'PTR')
       client = client[0].to_text()
-    except dns.resolver.NoAnswer:
+    except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN):
       logging.error("IP %s has no reverse records.", self.client_address)
       raise Exception("Access denied")
     # Check if we have host on the list of allowed hosts
