@@ -33,7 +33,6 @@ class RPC(object):
 
     self.configure()
 
-  @property
   def _controllers(self, only_ip = False):
     from configuration import config
 
@@ -133,7 +132,7 @@ class RPC(object):
 
     if network_config.get('unique', True):
       # Disable this IP over all controllers
-      for controller in self._controllers:
+      for controller in self._controllers():
         try:
           if controller.status(str(network)) == 'enabled':
             controller.disable(str(network))
