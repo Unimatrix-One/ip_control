@@ -46,15 +46,16 @@ class BirdConfig(object):
       match = self._network_re.match(line)
       if match:
         logging.info('Loaded network %s', match.group(1))
-        self.add_network(match.group(1))
+        self.add_network(match.group(1), None)
 
   def add_network(self, network, interface):
     network = netaddr.IPNetwork(network)
-    try:
-      # Add network route
-      subprocess.check_call(self._cmd('add_route', network = network, interface = interface))
-    except:
-      logging.exception("Cannot add network %s!", network)
+    if interface:
+      try:
+        # Add network route
+        subprocess.check_call(self._cmd('add_route', network = network, interface = interface))
+      except:
+        logging.exception("Cannot add network %s!", network)
 
     self._networks[network] = interface
 
