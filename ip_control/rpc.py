@@ -71,7 +71,7 @@ class RPC(object):
         continue
       interface = config.get(section, 'interface')
       # Check if interface exists
-      if not subprocess.call(['/sbin/ifconfig', interface]):
+      if subprocess.call(['/sbin/ifconfig', interface]):
         logging.warning("Interface %s does not exists, ignoring network %s.", interface, network)
         continue
       # Get allowed hosts, also check them if are properly configured
