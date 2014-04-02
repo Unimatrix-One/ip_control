@@ -100,7 +100,7 @@ class RoutingDaemon(threading.Thread):
   _instance = None
 
   def __init__(self, *args, **kwargs):
-    kwargs['daemon'] = True
+    self.daemon = True
     super(RoutingDaemon, self).__init__(*args, **kwargs)
 
     self.networks = set([])
