@@ -151,8 +151,8 @@ class RoutingDaemon(threading.Thread):
       # Wait for new
       timeout = None
       if self.pending_networks:
-        # Retry in 15 seconds
-        timeout = 15
+        # Retry in 2 seconds
+        timeout = 2
       self._sets_lock.wait(timeout)
     self._sets_lock.release()
 
