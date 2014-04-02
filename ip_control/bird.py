@@ -114,13 +114,13 @@ class RoutingDaemon(threading.Thread):
     cmd = config.get('General', cmd)
     return cmd.format(**kwargs).split(' ')
 
-  def add_route(self, network):
+  def add_network(self, network):
     self._sets_lock.acquire()
     self.pending_networks.add(network)
     self._sets_lock.notify()
     self._sets_lock.release()
 
-  def remove_route(self, network):
+  def remove_network(self, network):
     self._sets_lock.acquire()
     if network in self.networks:
       self.networks.remove(network)
