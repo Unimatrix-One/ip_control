@@ -108,11 +108,14 @@ class RoutingDaemon(threading.Thread):
 
     self._sets_lock = threading.Condition()
 
-  def _cmd(self, cmd, **kwargs):
+  def _cmd(self, cmd, split = True, **kwargs):
     from configuration import config
 
     cmd = config.get('General', cmd)
-    return cmd.format(**kwargs).split(' ')
+    cmd = cmd.format(**kwargs)
+    if split:
+      cmd = cmd.split(' ')
+    return cmd
 
   def add_network(self, network):
     self._sets_lock.acquire()
@@ -143,6 +146,7 @@ class RoutingDaemon(threading.Thread):
           self.pending_networks.remove(network)
           self.networks.add(network)
         elif not subprocess.call(self._cmd('ipv%d_check_route' % network.version,
+                                           split     = False,
                                            network   = network.ip if not network.hostmask.value else network,
                                            interface = self._get_interface(network)), shell = True):
           self.pending_networks.remove(network)
