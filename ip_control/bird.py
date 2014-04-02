@@ -143,7 +143,7 @@ class RoutingDaemon(threading.Thread):
           self.pending_networks.remove(network)
           self.networks.add(network)
         elif not subprocess.call(self._cmd('ipv%d_check_route' % network.version,
-                                           network   = network,
+                                           network   = network.ip if not network.hostmask.value else network,
                                            interface = self._get_interface(network)), shell = True):
           self.pending_networks.remove(network)
           self.networks.add(network)
