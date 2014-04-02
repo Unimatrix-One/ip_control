@@ -93,7 +93,7 @@ class BirdConfig(object):
       logging.exception('Got exception when reloading bird%d', self.version)
       raise
 
-class RoutingDaemon(threading.thread):
+class RoutingDaemon(threading.Thread):
   """
   A thread for ensuring presence of IP routes.
   """
@@ -154,5 +154,6 @@ class RoutingDaemon(threading.thread):
   def instance():
     if not RoutingDaemon._instance:
       RoutingDaemon._instance = RoutingDaemon()
+      RoutingDaemon._instance.start()
     return RoutingDaemon._instance
 
