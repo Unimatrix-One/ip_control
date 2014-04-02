@@ -28,6 +28,10 @@ bird6_reload = sudo service bird6 reload
 add_route = sudo ip ro add {network} dev {interface}
 # Command to be executed when removing route
 remove_route = sudo ip ro add {network} dev {interface}
+# Command to be executed when checking IPv4 route
+ipv4_check_route = ip ro sh dev {interface} | grep "scope link" | grep {network}
+# Command to be executed when checking IPv6 route
+ipv6_check_route = ip -6 ro sh dev {interface} | grep "scope link" | grep {network}
 # A file for checking persistance, if file doesn't exist
 # it will revert all previously enabled routes and
 # create this file for ensuring persistance after restart.

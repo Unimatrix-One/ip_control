@@ -142,6 +142,12 @@ class RoutingDaemon(threading.Thread):
                                                       interface = self._get_interface(network))):
           self.pending_networks.remove(network)
           self.networks.add(network)
+        elif not subprocess.call(self._cmd('ipv%d_check_route' % network.version,
+                                           network   = network,
+                                           interface = self._get_interface(network))):
+          self.pending_networks.remove(network)
+          self.networks.add(network)
+
       # Wait for new
       timeout = None
       if self.pending_networks:
