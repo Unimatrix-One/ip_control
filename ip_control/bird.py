@@ -10,7 +10,7 @@ class BirdConfig(object):
 
   def __init__(self, version, revert_old):
     from ip_control.configuration import config
-    self._networks = {}
+    self._networks = set([])
     self.version = 6 if str(version) == '6' else 4
     self._filepath = config.get('General', 'bird{}_dynamic_config'.format(self.version))
     self._prepare_path()
@@ -46,31 +46,31 @@ class BirdConfig(object):
       match = self._network_re.match(line)
       if match:
         logging.info('Loaded network %s', match.group(1))
-        self.add_network(match.group(1), None)
+        self.add_network(match.group(1))
 
-  def add_network(self, network, interface):
+  def add_network(self, network):
+    from configuration import config
+
     network = netaddr.IPNetwork(network)
-    if interface:
-      try:
-        # Add network route
-        subprocess.check_call(self._cmd('add_route', network = network, interface = interface))
-      except:
-        logging.exception("Cannot add network %s!", network)
+    interface = config.get(str(network), 'interface')
 
-    self._networks[network] = interface
+    # Add network route
+    subprocess.check_call(self._cmd('add_route', network = network, interface = interface))
+
+    self._networks.add(network)
 
   def remove_network(self, network):
+    from configuration import config
+
     network = netaddr.IPNetwork(network)
+    interface = config.get(str(network), 'interface')
+
     if network not in self._networks:
       return
-    interface = self._networks[network]
 
-    try:
-      # Add network route
-      subprocess.check_call(self._cmd('remove_route', network = network, interface = interface))
-    except:
-      logging.exception("Cannot remove network %s!", network)
-    del self._networks[network]
+    # Add network route
+    subprocess.check_call(self._cmd('remove_route', network = network, interface = interface))
+    self._networks.remove(network)
 
   def has_network(self, network):
     network = netaddr.IPNetwork(network)
@@ -78,7 +78,7 @@ class BirdConfig(object):
 
   @property
   def networks(self):
-    return set(self._networks.keys())
+    return set(self._networks)
 
   def save(self):
     # Create/rewrite config file

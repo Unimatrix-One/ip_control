@@ -71,9 +71,7 @@ class RPC(object):
         continue
       interface = config.get(section, 'interface')
       # Check if interface exists
-      try:
-        subprocess.check_call(['/sbin/ifconfig', interface])
-      except subprocess.CalledProcessError:
+      if not subprocess.call(['/sbin/ifconfig', interface]):
         logging.warning("Interface %s does not exists, ignoring network %s.", interface, network)
         continue
       # Get allowed hosts, also check them if are properly configured
@@ -115,7 +113,6 @@ class RPC(object):
       # Add network
       self._networks[network] = {
         'allowed_hosts': allowed_hosts,
-        'interface': interface,
         'unique': not network.hostmask.value or (not config.getboolean(section, 'unicast') if config.has_option(section, 'unicast') else True)
       }
 
@@ -143,7 +140,7 @@ class RPC(object):
           logging.exception("There was an exception when trying to disable the network %s on controller %s:", network, controller)
 
     if not self._bird[network.version].has_network(network):
-      self._bird[network.version].add_network(network, network_config['interface'])
+      self._bird[network.version].add_network(network)
       self._bird[network.version].save()
 
   def disable(self, network):
