@@ -46,25 +46,20 @@ class BirdConfig(object):
       match = self._network_re.match(line)
       if match:
         logging.info('Loaded network %s', match.group(1))
-        self.add_network(match.group(1), ignore_error = True)
+        self.add_network(match.group(1))
 
-  def add_network(self, network, ignore_error = False):
+  def add_network(self, network):
     from configuration import config
 
     network = netaddr.IPNetwork(network)
     interface = config.get(str(network), 'interface')
 
-    try:
-      # Add network route
-      subprocess.check_call(self._cmd('add_route', network = network, interface = interface))
-      self._networks.add(network)
-    except subprocess.CalledProcessError:
-      if ignore_error:
-        logging.warning("Cannot add route for network %s on interface %s", network, interface)
-      else:
-        raise
+    # Add network route
+    subprocess.call(self._cmd('add_route', network = network, interface = interface))
 
-  def remove_network(self, network, ignore_error = False):
+    self._networks.add(network)
+
+  def remove_network(self, network):
     from configuration import config
 
     network = netaddr.IPNetwork(network)
@@ -73,15 +68,10 @@ class BirdConfig(object):
     if network not in self._networks:
       return
 
-    try:
-      # Remove network route
-      subprocess.check_call(self._cmd('remove_route', network = network, interface = interface))
-      self._networks.remove(network)
-    except subprocess.CalledProcessError:
-      if ignore_error:
-        logging.warning("Cannot add route for network %s on interface %s", network, interface)
-      else:
-        raise
+    # Remove network route
+    subprocess.call(self._cmd('remove_route', network = network, interface = interface))
+
+    self._networks.remove(network)
 
   def has_network(self, network):
     network = netaddr.IPNetwork(network)
