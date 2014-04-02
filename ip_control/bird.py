@@ -4,6 +4,7 @@ import os.path
 from datetime import datetime
 import subprocess
 import logging
+import threading
 
 class BirdConfig(object):
   _network_re = re.compile(r'^\s*stubnet\s+([^;]+);\s*$')
@@ -17,8 +18,6 @@ class BirdConfig(object):
 
     # Prepare commands
     self._reload = config.get('General', 'bird{}_reload'.format(self.version))
-    self._add_route = config.get('General', 'add_route')
-    self._remove_route = config.get('General', 'remove_route')
 
     # Load configs
     if revert_old or not os.path.exists(self._filepath):
@@ -49,27 +48,21 @@ class BirdConfig(object):
         self.add_network(match.group(1))
 
   def add_network(self, network):
-    from configuration import config
-
     network = netaddr.IPNetwork(network)
-    interface = config.get(str(network), 'interface')
 
     # Add network route
-    subprocess.call(self._cmd('add_route', network = network, interface = interface))
+    RoutingDaemon.instance().add_network(network)
 
     self._networks.add(network)
 
   def remove_network(self, network):
-    from configuration import config
-
     network = netaddr.IPNetwork(network)
-    interface = config.get(str(network), 'interface')
 
     if network not in self._networks:
       return
 
     # Remove network route
-    subprocess.call(self._cmd('remove_route', network = network, interface = interface))
+    RoutingDaemon.instance().remove_network(network)
 
     self._networks.remove(network)
 
@@ -99,3 +92,67 @@ class BirdConfig(object):
     except:
       logging.exception('Got exception when reloading bird%d', self.version)
       raise
+
+class RoutingDaemon(threading.thread):
+  """
+  A thread for ensuring presence of IP routes.
+  """
+  _instance = None
+
+  def __init__(self, *args, **kwargs):
+    kwargs['daemon'] = True
+    super(RoutingDaemon, self).__init__(*args, **kwargs)
+
+    self.networks = set([])
+    self.pending_networks = set([])
+
+    self._sets_lock = threading.Condition()
+
+  def _cmd(self, cmd, **kwargs):
+    from configuration import config
+
+    cmd = config.get('General', cmd)
+    return cmd.format(**kwargs).split(' ')
+
+  def add_route(self, network):
+    self._sets_lock.acquire()
+    self.pending_networks.add(network)
+    self._sets_lock.notify()
+    self._sets_lock.release()
+
+  def remove_route(self, network):
+    self._sets_lock.acquire()
+    if network in self.networks:
+      self.networks.remove(network)
+      subprocess.call(self._cmd('remove_route', network   = network,
+                                                interface = self._get_interface(network)))
+    else:
+      self.pending_networks.remove(network)
+    self._sets_lock.release()
+
+  def _get_interface(self, network):
+    from configuration import config
+    return config.get(str(network), 'interface')
+
+  def run(self):
+    self._sets_lock.acquire()
+    while True:
+      for network in set(self.pending_networks):
+        if not subprocess.call(self._cmd('add_route', network   = network,
+                                                      interface = self._get_interface(network))):
+          self.pending_networks.remove(network)
+          self.networks.add(network)
+      # Wait for new
+      timeout = None
+      if self.pending_networks:
+        # Retry in 15 seconds
+        timeout = 15
+      self._sets_lock.wait(timeout)
+    self._sets_lock.release()
+
+  @staticmethod
+  def instance():
+    if not RoutingDaemon._instance:
+      RoutingDaemon._instance = RoutingDaemon()
+    return RoutingDaemon._instance
+
