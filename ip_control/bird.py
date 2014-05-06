@@ -167,3 +167,41 @@ class RoutingDaemon(threading.Thread):
       RoutingDaemon._instance.start()
     return RoutingDaemon._instance
 
+class HealthCheckDaemon(threading.Thread):
+  def __init__(self, bird_daemon, *args, **kwargs):
+    super(HealthCheckDaemon, self).__init__(*args, **kwargs)
+
+    self._bird_daemon = bird_daemon
+    self._networks = {}
+    self._lock = threading.Condition()
+    self._running = True
+
+  def add_network(self, network, cmd):
+    self._lock.acquire()
+    self._networks[network] = cmd
+    self._lock.notify()
+    self._lock.release()
+
+  def stop(self):
+    self._lock.acquire()
+    self._running = False
+    self._lock.notify()
+    self._lock.release()
+
+  def run(self):
+    self._lock.acquire()
+    while self._running:
+      # Check networks
+      for network, hc in self._networks.items():
+        if not subprocess.call(hc, shell = True):
+          if not self._bird_daemon.has_network(network):
+            logging.info("Health check for network %s has succeeded, enabling it.", network)
+            self._bird_daemon.add_network(network)
+        else:
+          if self._bird_daemon.has_network(network):
+            logging.warning("Health check for network %s has failed, disabling it.", network)
+            self._bird_daemon.remove_network(network)
+
+      # Let's wait for next loop
+      self._lock.wait(5)
+    self._lock.release()

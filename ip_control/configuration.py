@@ -45,6 +45,10 @@ allowed_hosts=ctxxxx.dronexx.tus.uninet,
               ctxxxx.dronexx.tus.uninet
 # Is IP unicasted? (usable only for /32 or /128)
 unicast = false
+# Health check command, usable only for anycast IPs!
+# Do note, if health check is specified, the route will be added when the command
+# successfully exits, it ignores the RPC part
+health_check = curl -s -o /dev/null http://this.is.my.ct.on.host.internal_zone
 # Interface to add route to
 interface = lxc0
 """

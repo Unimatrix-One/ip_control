@@ -5,12 +5,13 @@ import dns.reversename
 import netaddr
 import jsonrpclib
 import subprocess
-from ip_control.bird import BirdConfig
+from ip_control.bird import BirdConfig, HealthCheckDaemon
 
 class RPC(object):
   def __init__(self, (bind_ip, bind_port)):
     self.bind_ip = bind_ip
     self.bind_port = bind_port
+    self._health_checks = None
 
     self.configure()
 
@@ -59,6 +60,16 @@ class RPC(object):
       4: BirdConfig(4, revert_old),
       6: BirdConfig(6, revert_old)
     }
+    # (Re-)Initialize health checks
+    if self._health_checks:
+      self._health_checks[4].stop()
+      self._health_checks[6].stop()
+    self._health_checks = {
+      4: HealthCheckDaemon(self._bird[4]),
+      6: HealthCheckDaemon(self._bird[6])
+    }
+    self._health_checks[4].start()
+    self._health_checks[6].start()
 
     # Load networks
     self._networks = {}
@@ -110,11 +121,20 @@ class RPC(object):
         else:
           logging.info("Host's %s DNS records are properly configured.", host)
 
+
       # Add network
       self._networks[network] = {
         'allowed_hosts': allowed_hosts,
-        'unique': not network.hostmask.value or (not config.getboolean(section, 'unicast') if config.has_option(section, 'unicast') else True)
+        'unique': network.hostmask.value or config.getboolean(section, 'unicast') if config.has_option(section, 'unicast') else True
       }
+
+      if config.has_option(section, 'health_check'):
+        logging.info("Network %s has health check specified, chekcking compatibility with other options.", network)
+        if self._networks[network]['unique']:
+          logging.warning("Network %s is specified as a unicast IP, ignoring health check.", network)
+        else:
+          logging.info("Enabling health check for network %s.", network)
+          self._health_checks[network.version].add_network(network, config.get(section, 'health_check'))
 
     # Remove non managed networks (they should not be announced anymore!)
     changed = set([])
