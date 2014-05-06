@@ -191,16 +191,23 @@ class HealthCheckDaemon(threading.Thread):
   def run(self):
     self._lock.acquire()
     while self._running:
+      change = False
       # Check networks
       for network, hc in self._networks.items():
         if not subprocess.call(hc, shell = True):
           if not self._bird_daemon.has_network(network):
             logging.info("Health check for network %s has succeeded, enabling it.", network)
             self._bird_daemon.add_network(network)
+            change = True
         else:
           if self._bird_daemon.has_network(network):
             logging.warning("Health check for network %s has failed, disabling it.", network)
             self._bird_daemon.remove_network(network)
+            change = True
+
+      # Save the configuration
+      if change:
+        self._bird_daemon.save()
 
       # Let's wait for next loop
       self._lock.wait(5)
