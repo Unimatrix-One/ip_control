@@ -86,41 +86,43 @@ class RPC(object):
         logging.warning("Interface %s does not exists, ignoring network %s.", interface, network)
         continue
       # Get allowed hosts, also check them if are properly configured
-      allowed_hosts = [i.strip() for i in config.get(section, 'allowed_hosts').split(',')]
-      allowed_hosts = set([i if i.endswith('.') else i + '.' for i in allowed_hosts])
-      for host in [i for i in allowed_hosts]:
-        try:
-          address = dns.resolver.query(host)
-          if len(address) > 1:
-            logging.warning("Host %s resolves to multiple IP addresses, removing from allowed hosts.", host)
+      if config.has_option(section, 'allowed_hosts'):
+        allowed_hosts = [i.strip() for i in config.get(section, 'allowed_hosts').split(',')]
+        allowed_hosts = set([i if i.endswith('.') else i + '.' for i in allowed_hosts])
+        for host in [i for i in allowed_hosts]:
+          try:
+            address = dns.resolver.query(host)
+            if len(address) > 1:
+              logging.warning("Host %s resolves to multiple IP addresses, removing from allowed hosts.", host)
+              allowed_hosts.remove(host)
+              continue
+            address = address[0]
+            logging.info("Host %s resolved to %s", host, address)
+          except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN):
+            logging.warning("Host %s has no DNS record, removing it from allowed hosts.", host)
             allowed_hosts.remove(host)
             continue
-          address = address[0]
-          logging.info("Host %s resolved to %s", host, address)
-        except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN):
-          logging.warning("Host %s has no DNS record, removing it from allowed hosts.", host)
-          allowed_hosts.remove(host)
-          continue
-        # Check reverse lookup
-        try:
-          reverse_lookup = dns.resolver.query(dns.reversename.from_address(address.to_text()), 'PTR')
-          if len(reverse_lookup) > 1:
-            logging.warning("Host's %s IP %s has many reverse records, removing it from allowed hosts.", host, address)
+          # Check reverse lookup
+          try:
+            reverse_lookup = dns.resolver.query(dns.reversename.from_address(address.to_text()), 'PTR')
+            if len(reverse_lookup) > 1:
+              logging.warning("Host's %s IP %s has many reverse records, removing it from allowed hosts.", host, address)
+              allowed_hosts.remove(host)
+              continue
+            reverse_lookup = reverse_lookup[0].to_text()
+            logging.info("Resolved IP %s has an inverse record to %s", address, reverse_lookup)
+          except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN):
+            logging.warning("Host's %s IP %s has no reverse DNS record, removing it from allowed hosts.", host, address)
             allowed_hosts.remove(host)
             continue
-          reverse_lookup = reverse_lookup[0].to_text()
-          logging.info("Resolved IP %s has an inverse record to %s", address, reverse_lookup)
-        except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN):
-          logging.warning("Host's %s IP %s has no reverse DNS record, removing it from allowed hosts.", host, address)
-          allowed_hosts.remove(host)
-          continue
-        # Does host and reversed looked up host match?
-        if host != reverse_lookup:
-          logging.warning("Host %s and it's reverse %s from IP %s does not match, removing it from allowed hosts.", host, reverse_lookup, address)
-          allowed_hosts.remove(host)
-        else:
-          logging.info("Host's %s DNS records are properly configured.", host)
-
+          # Does host and reversed looked up host match?
+          if host != reverse_lookup:
+            logging.warning("Host %s and it's reverse %s from IP %s does not match, removing it from allowed hosts.", host, reverse_lookup, address)
+            allowed_hosts.remove(host)
+          else:
+            logging.info("Host's %s DNS records are properly configured.", host)
+      else:
+        allowed_hosts = set([])
 
       # Add network
       self._networks[network] = {
@@ -128,6 +130,7 @@ class RPC(object):
         'unique': network.hostmask.value or config.getboolean(section, 'unicast') if config.has_option(section, 'unicast') else True
       }
 
+      # Setup health check
       if config.has_option(section, 'health_check'):
         logging.info("Network %s has health check specified, chekcking compatibility with other options.", network)
         if self._networks[network]['unique']:
