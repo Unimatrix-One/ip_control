@@ -84,10 +84,10 @@ def get_bind_info():
     bind_ip = dns.resolver.query(hostname)[0].to_text()
   except subprocess.CalledProcessError:
     logging.error("Unable to retrieve router's hostname.")
-    exit(1)
+    return None
   except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN):
     logging.error("Unable to resolve router's hostname.")
-    exit(1)
+    return None
   logging.info("Binding to address %s.", bind_ip)
   try:
     control_domain = config.get('General', 'ip_control_dns_name')
@@ -97,16 +97,29 @@ def get_bind_info():
     logging.info("Resolved to %s.", bind_port)
   except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN):
     logging.error("Unable to resolve %s TXT record to fetch bind port.", control_domain)
-    exit(1)
+    return None
   bind_port = re.search(r'\s?port=(\d+)', bind_port)
   if not bind_port:
     logging.error("Invalid TXT record for %s.", control_domain)
-    exit(1)
+    return None
   else:
     bind_port = int(bind_port.group(1))
     logging.info("Binding to port %d.", bind_port)
 
   return (bind_ip, bind_port)
+
+# First, init dynamic routes
+# Check for persistance (bootup or daemon restart)
+persistance_file = config.get('General', 'persistance_file')
+if not os.path.exists(persistance_file):
+  # Touch this file
+  try:
+    open(persistance_file, 'w')
+  except IOError:
+    logging.error("Cannot create persistance file.")
+  # Recreate dynamic files
+  open(config.get('General', 'bird4_dynamic_config'), 'w')
+  open(config.get('General', 'bird6_dynamic_config'), 'w')
 
 # Setup our server
 bind_info = None
@@ -115,7 +128,11 @@ while not bind_info:
     bind_info = get_bind_info()
   except dns.resolver.Timeout:
     logging.warning("Timeout occured when retrieving settings from DNS.")
-    continue
+  except:
+    logging.warning("Unknown error occured when retrieving settings from DNS.")
+  if not bind_info:
+    import time
+    time.sleep(5)
 rpc_instance = RPC(bind_info)
 server = SimpleJSONRPCServer((rpc_instance.bind_ip, rpc_instance.bind_port),
                              requestHandler = RequestHandler)

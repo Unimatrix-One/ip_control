@@ -42,23 +42,10 @@ class RPC(object):
     from ip_control.configuration import config
     logging.info("Configuring")
 
-    # First, configure birds
-    # Check for persistance
-    persistance_file = config.get('General', 'persistance_file')
-    if os.path.exists(persistance_file):
-      revert_old = False
-    else:
-      revert_old = True
-      # Touch this file
-      try:
-        open(persistance_file, 'w')
-      except IOError:
-        logging.error("Cannot create persistance file.")
-
     # Initialize Birds
     self._bird = {
-      4: BirdConfig(4, revert_old),
-      6: BirdConfig(6, revert_old)
+      4: BirdConfig(4),
+      6: BirdConfig(6)
     }
     # (Re-)Initialize health checks
     if self._health_checks:

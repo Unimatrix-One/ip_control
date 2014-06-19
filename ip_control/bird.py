@@ -9,7 +9,7 @@ import threading
 class BirdConfig(object):
   _network_re = re.compile(r'^\s*stubnet\s+([^;]+);\s*$')
 
-  def __init__(self, version, revert_old):
+  def __init__(self, version):
     from ip_control.configuration import config
     self._networks = set([])
     self.version = 6 if str(version) == '6' else 4
@@ -20,7 +20,7 @@ class BirdConfig(object):
     self._reload = config.get('General', 'bird{}_reload'.format(self.version))
 
     # Load configs
-    if revert_old or not os.path.exists(self._filepath):
+    if not os.path.exists(self._filepath):
       self.save()
     else:
       self._load()
