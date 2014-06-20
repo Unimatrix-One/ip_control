@@ -114,7 +114,7 @@ class RPC(object):
       # Add network
       self._networks[network] = {
         'allowed_hosts': allowed_hosts,
-        'unique': network.hostmask.value or config.getboolean(section, 'unicast') if config.has_option(section, 'unicast') else True
+        'unique': config.getboolean(section, 'unicast') if config.has_option(section, 'unicast') else True
       }
 
       # Setup health check
