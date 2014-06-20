@@ -24,7 +24,7 @@ class BirdConfig(object):
     if os.path.exists(self._filepath):
       self._load()
     # Make sure we have proper bird configs
-    self._save()
+    self.save()
 
   def _cmd(self, cmd, **kwargs):
     return getattr(self, '_' + cmd).format(**kwargs).split(' ')
