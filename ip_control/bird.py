@@ -23,7 +23,7 @@ class BirdConfig(object):
     # Load all networks
     self._interfaces = {}
     for network in (i for i in config.sections() if i != 'General'):
-      self._interfaces[netaddr.IPNetwork(network)] = config.get(section, 'interface')
+      self._interfaces[netaddr.IPNetwork(network)] = config.get(network, 'interface')
 
     # Load configs
     if os.path.exists(self._filepath):
