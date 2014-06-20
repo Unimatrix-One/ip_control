@@ -119,7 +119,9 @@ if not os.path.exists(persistance_file):
     logging.error("Cannot create persistance file.")
   # Recreate dynamic files
   open(config.get('General', 'bird4_dynamic_config'), 'w')
+  open(config.get('General', 'bird4_dynamic_routes'), 'w')
   open(config.get('General', 'bird6_dynamic_config'), 'w')
+  open(config.get('General', 'bird6_dynamic_routes'), 'w')
 
 # Setup our server
 bind_info = None
